@@ -103,6 +103,31 @@ function commerce_pos_label_form_alter(&$form, &$form_state, $form_id) {
 }
 
 /**
+ * Implements hook_options_list().
+ */
+function commerce_pos_label_options_list($field, $instance, $entity_type, $entity) {
+  $wrapper = entity_metadata_wrapper('commerce_product', $entity);
+  $entity_type = $wrapper->{$field['field_name']}->type();
+  $field_value = $wrapper->{$field['field_name']}->raw();
+
+  // Make sure it returns a `key => value` pair.
+  if ($entity_type != 'text') {
+    // If the attribute is referenced to some entity.
+    $field_wrapper = entity_metadata_wrapper($entity_type, $field_value);
+
+    $options[$field_value] = $field_wrapper->label();
+  }
+  else {
+    // If the attribute is a list text.
+    $index = array_shift($field['indexes']);
+
+    $options[$field_value] = $wrapper->{$field['field_name']}->label();
+  }
+
+  return $options;
+}
+
+/**
  * Additional submit handler for the POS settings form.
  */
 function commerce_pos_label_form_settings_form_submit($form, &$form_state) {
@@ -186,7 +211,9 @@ function commerce_pos_label_attribute_fields($type, $reset = FALSE) {
     $attribute_fields = array();
 
     foreach (field_info_instances('commerce_product', $type) as $field_name => $instance) {
-      if (commerce_cart_field_instance_is_attribute($instance)) {
+      $field = field_info_field($field_name);
+
+      if (commerce_cart_field_attribute_eligible($field) && commerce_cart_field_instance_is_attribute($instance)) {
         $attribute_fields[$type][] = $field_name;
       }
     }
@@ -212,14 +239,15 @@ function commerce_pos_label_attributes_string($product) {
     $wrapper = entity_metadata_wrapper('commerce_product', $product);
 
     foreach ($attribute_fields as $field_name) {
-      $field_info = field_info_instance('commerce_product', $field_name, $product->type);
-
       if (isset($wrapper->{$field_name}) && $attribute_value = $wrapper->{$field_name}->value()) {
-        if (is_array($attribute_value)) {
-          $attribute_value = implode(', ', $attribute_value);
-        }
+        $field = field_info_field($field_name);
+        $field_info = field_info_instance('commerce_product', $field_name, $product->type);
 
-        $attributes[] = $field_info['label'] . ': ' . $attribute_value;
+        // Ensure that `commerce_pos_label_options_list()` is used.
+        $field['module'] = 'commerce_pos_label';
+        $options = _options_get_options($field, $field_info, NULL, 'commerce_product', $product);
+
+        $attributes[] = $field_info['label'] . ': ' . array_shift($options);
       }
     }
 
