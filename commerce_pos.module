@@ -1308,3 +1308,7 @@ function _commerce_pos_product_get_empty_results_message() {
     'title' => t('No Results'),
   );
 }
+
+/**
+ * vim syntax: php
+ */
