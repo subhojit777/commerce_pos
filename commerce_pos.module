@@ -1309,4 +1309,6 @@ function _commerce_pos_product_get_empty_results_message() {
   );
 }
 
-vim: syntax=php
+/**
+ * vim: syntax=php
+ */
